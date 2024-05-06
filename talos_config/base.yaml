@@ -1,0 +1,79 @@
+version: v1alpha1
+persist: true
+machine:
+  type: worker
+
+  ca:
+    crt: LS0tLS1CRUdJTiBDRVJUSUZJQ0FURS0tLS0tCk1JSUJQakNCOGFBREFnRUNBaEFKeFpaWDZVUFpmVXk3RjFLbEJ1ZlBNQVVHQXl0bGNEQVFNUTR3REFZRFZRUUsKRXdWMFlXeHZjekFlRncweU16QTNNRGd4TlRVd05UaGFGdzB6TXpBM01EVXhOVFV3TlRoYU1CQXhEakFNQmdOVgpCQW9UQlhSaGJHOXpNQ293QlFZREsyVndBeUVBQUNOU0UzYUFmWTkyRmJFa3V3STVndXlyVk45Rk5sQmp4a2p2CmJsRVVpNCtqWVRCZk1BNEdBMVVkRHdFQi93UUVBd0lDaERBZEJnTlZIU1VFRmpBVUJnZ3JCZ0VGQlFjREFRWUkKS3dZQkJRVUhBd0l3RHdZRFZSMFRBUUgvQkFVd0F3RUIvekFkQmdOVkhRNEVGZ1FVLzhHMGdKT2poNzhURVBGRAptUW8xZXdOTUJHZ3dCUVlESzJWd0EwRUFzYUVLQmc1U2RpSW85U09kRGRTWmNwWmZQandrTUtXQmFVZU1yVTM0CkNyNUp2M2lNdHFUZVd2THA4dkppaUQwYy9VUUhpVmpWRHU4cmlFbzk0bFc1Qmc9PQotLS0tLUVORCBDRVJUSUZJQ0FURS0tLS0tCg==
+
+  kubelet:
+    image: ghcr.io/siderolabs/kubelet:v1.29.4
+    defaultRuntimeSeccompProfileEnabled: true
+    disableManifestsDirectory: true
+
+  network:
+    interfaces:
+      - interface: eno1
+        dhcp: true
+
+    nameservers:
+      - 10.250.11.5
+
+  install:
+    disk: /dev/sda
+    image: factory.talos.dev/installer/22a73b21ea2e27057f17a22b56fdf89e09868979c10d22f10a9b7e9c1e988a60:v1.6.6
+    wipe: true
+
+  registries: {}
+
+  features:
+    rbac: true
+    stableHostname: true
+    apidCheckExtKeyUsage: true
+
+  time:
+    disabled: false
+    bootTimeout: 2m0s
+    servers:
+      - time.cloudflare.com
+
+  sysctls:
+    net.ipv6.conf.all.disable_ipv6: "1"
+    net.ipv6.conf.default.disable_ipv6: "1"
+
+  logging:
+    destinations:
+      - endpoint: udp://10.250.22.200:514
+        format: json_lines
+
+cluster:
+  id: Ol-7uMs_k4DP_46PY5RyaUQyfbcdZ4xBotL3PEjdHgM=
+
+  allowSchedulingOnControlPlanes: true
+
+  controlPlane:
+    endpoint: https://kube.lab.djls.space:6443
+
+  network:
+    dnsDomain: cluster.local
+    podSubnets:
+      - 10.244.0.0/16
+    serviceSubnets:
+      - 10.96.0.0/12
+
+    cni:
+      name: custom
+      urls:
+        - https://raw.githubusercontent.com/projectcalico/calico/v3.27.3/manifests/tigera-operator.yaml
+        - https://raw.githubusercontent.com/projectcalico/calico/v3.27.3/manifests/custom-resources.yaml
+
+  ca:
+    crt: LS0tLS1CRUdJTiBDRVJUSUZJQ0FURS0tLS0tCk1JSUJpVENDQVRDZ0F3SUJBZ0lSQUpvNTA2Y2MrVmUzNmVGMzEwQWs3K013Q2dZSUtvWkl6ajBFQXdJd0ZURVQKTUJFR0ExVUVDaE1LYTNWaVpYSnVaWFJsY3pBZUZ3MHlNekEzTURneE5UVXdOVGhhRncwek16QTNNRFV4TlRVdwpOVGhhTUJVeEV6QVJCZ05WQkFvVENtdDFZbVZ5Ym1WMFpYTXdXVEFUQmdjcWhrak9QUUlCQmdncWhrak9QUU1CCkJ3TkNBQVNqYko3NlZ5VFB6ZkxMNnd6T1FFOTBoRkIrRHVwUjVBTjFNRVI1akRxTEltc3luQjlsWXRJR1V5a3gKWk9uemZmNEhRcDNSUnJ3L0UxYWR0R1BMUWpQZ28yRXdYekFPQmdOVkhROEJBZjhFQkFNQ0FvUXdIUVlEVlIwbApCQll3RkFZSUt3WUJCUVVIQXdFR0NDc0dBUVVGQndNQ01BOEdBMVVkRXdFQi93UUZNQU1CQWY4d0hRWURWUjBPCkJCWUVGTkxSUnZmR2lFdHcvWkVuOFoxSHBsd3U2Uk9sTUFvR0NDcUdTTTQ5QkFNQ0EwY0FNRVFDSUU2MFFzMmUKU2JORzZ6akdEc0c5TTRSV202VjlyVzhCeEMydUhqQzJQa1JVQWlBMVMvbnlIcm13RW5GSVQ3aU0zR0ZTZTU0UQpaakhlQVBXMHFJWHdka0V4N1E9PQotLS0tLUVORCBDRVJUSUZJQ0FURS0tLS0tCg==
+
+  discovery:
+    enabled: true
+    registries:
+      kubernetes:
+        disabled: false
+      service:
+        disabled: true

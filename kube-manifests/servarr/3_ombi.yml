@@ -1,0 +1,160 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: ombi
+  namespace: servarr
+  labels:
+    app.kubernetes.io/name: servarr
+    app.kubernetes.io/instance: ombi
+spec:
+  selector:
+    matchLabels:
+      app: ombi
+  replicas: 1
+  serviceName: ombi
+  template:
+    metadata:
+      labels:
+        app: ombi
+    spec:
+      volumes:
+        - name: ombi-database-config
+          secret:
+            secretName: ombi-database-config
+      securityContext:
+        fsGroup: 1000
+      containers:
+        - name: ombi
+          image: ghcr.io/justereseau/ombi:4.43.16
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 3579
+              name: http
+          volumeMounts:
+            - name: ombi-database-config
+              mountPath: /config/database.json
+              subPath: database.json
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 1000
+            runAsGroup: 1000
+            allowPrivilegeEscalation: false
+            seccompProfile:
+              type: RuntimeDefault
+            capabilities:
+              drop:
+                - ALL
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: ombi
+  namespace: servarr
+  labels:
+    app.kubernetes.io/name: servarr
+    app.kubernetes.io/instance: ombi
+spec:
+  ports:
+    - name: http
+      port: 80
+      protocol: TCP
+      targetPort: http
+  selector:
+    app: ombi
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: ombi-network-policy
+  namespace: servarr
+  labels:
+    app.kubernetes.io/name: servarr
+    app.kubernetes.io/instance: ombi
+spec:
+  podSelector:
+    matchLabels:
+      app: ombi
+  policyTypes:
+    - Egress
+  egress:
+    - to:
+        - podSelector:
+            matchLabels:
+              app: radarr
+        - podSelector:
+            matchLabels:
+              app: sonarr
+      ports:
+        - port: http
+    # Allow access to Plex
+    - to:
+        - ipBlock:
+            cidr: 10.250.20.20/32
+      ports:
+        - port: 32400
+    # Allow access to MariaDB
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              name: servarr-db
+          podSelector:
+            matchLabels:
+              app: mariadb
+      ports:
+        - port: 3306
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: ombi
+  namespace: servarr
+  labels:
+    app.kubernetes.io/name: servarr
+    app.kubernetes.io/instance: ombi
+spec:
+  ingressClassName: nginx
+  rules:
+    - host: ombi.djls.space
+      http:
+        paths:
+          - pathType: Prefix
+            path: /
+            backend:
+              service:
+                name: ombi
+                port:
+                  name: http
+---
+# To generate the secret sealed data:
+# echo -n "DB User: " ; read -s db_user ; echo
+# echo -n "DB Password: " ; read -s db_pass ; echo
+# kubectl create secret generic ombi-database-config --namespace servarr --dry-run=client --from-literal=db_user=$db_user --from-literal=db_pass=$db_pass -o json | kubeseal -o yaml
+apiVersion: bitnami.com/v1alpha1
+kind: SealedSecret
+metadata:
+  name: ombi-database-config
+  namespace: servarr
+spec:
+  encryptedData:
+    db_pass: AgCCZeI260GbGMfC2QqAmnYaK6iVviiyED+aPuUZo4a8XeQx33ZVEwOgIyZd6g1j8lF6gEFUyCu9o9mARynYYVCGsfdRjUgxfW81VxRvUyqCwg68Z1AO2cMzrsUbEtzQayxEkmirlMSBhvVKjN7iBaYf54gpOj0y/Pn3EgU7Vhn8A7OJbVeco8N9DTprUAYIo+cXjtVmqDIqrdHg/lqGzkwZ64O/oiCsG1pdsVYZdCMY+ukq+ocePcLgBj3ICkbyUg++0gY54ypy1JICcEBR7uEYLYYZPU6vakR8GwD3vTLsuPSISnO16todbIgXAAYFrO+tDc/egeTU+RKUOJdZK0zQJotaURByQtebKYZTdK0URZYi2sz68jSYQQMXvYTQNxywh6HxzUtxWZQuaM8LetcQfk/nmSzdKA6BPoPNhb4+l7CXrDikJN1ROTGyEUI24WcutcmuLLQ1dKwKJG/MFObPccNYZPTSgu3Qqe3lcsFIZc0ZpZmJbIezrTcLb2q0rb7TUmfm+Niy6S+fI1GDnm5Of2X5gUdZSJSSEHelyKxOOWmy+9OU95f90ScLCEQEVS+bahPZfmOo53gkMHXJwP5lMmDH5zepztVVMg5sC4X5g1PF8vNT/JS2xr7Gs9fWPPca7yBvDIk7SSnx+9O4CqkSlKSC0LAOctig/oNEFtoRt45dWLF8mIRK8D7V9sH/gbb7rqzKz5wYzcwBJtMQU/AVffUsHE8ObsxewX3G3l8=
+    db_user: AgBeMa5AWFJpff5S6r7eGrodywx2eO5Tufd2IJT9TECN80wFagloik6Gj8CEu75GXnVyNYpshvBwHBBXXZ3Zo1q+VgA/30Up6HRNQF5/2gJ8zBFUnMmB+X7HMtRWtogC4haZFP16wNxNHXR6fPcRGDYAfTk9inorqap6q/MwBDeq//Np+NrJFSqWeH4N6fkSP18FSgKKOhWi9XakdGPo7F9vzGM9uixw7lpX3SIPBCHLswiqsmG+BQxxx+DxgqcSlw72RNQd2pDaN4Yoj1O6oFC8lsPfbwhV7EdjjBnbgdVyebaxp60fFfn9jVs1E6Zko+W28i3jUWy32DxDvqWrTSpqm6tFJJD2yuEU75WnAdv1c7FkCtu3BrKQWcjc4q4aKDGXWXoVzIH2BcFi4rhvIiRekH5VvWvo+cVVeS7dJDhOWr5GMkTVBJaC+3G8CoDOvW84SPbd/XTEluhjXkWiME7Q3wxBicFzeX2V37czpjyb2EOa17D5sT8o14AyhN4MxxKPxIUC+bkAQ0qwJCzz9Nk8GVwkbsanzOJSjJczmfT7m9EkMLG5mZwnAEPyiVUeRa0jYCBeBGAhJXsUVKarbVVYYc5qmcMuU4Hxc+NLt73xSfOZ0PxwzgEejHjzVTdDq90Ms/M5grU84oxVFc8OHk/Gghd00vESX2bCMLbBKVqWpmCjZEuInrkh9bw8w/skSaIKhD0H
+  template:
+    metadata:
+      name: ombi-database-config
+      namespace: servarr
+    data:
+      database.json: |
+        {
+          "OmbiDatabase": {
+            "Type":"MySql",
+            "ConnectionString":"Server=mariadb.servarr-db.svc.cluster.local;Database=Ombi;User={{ index . "db_user" }};Password={{ index . "db_pass" }};"
+          },
+          "SettingsDatabase": {
+            "Type":"MySql",
+            "ConnectionString":"Server=mariadb.servarr-db.svc.cluster.local;Database=Ombi;User={{ index . "db_user" }};Password={{ index . "db_pass" }};"
+          },
+          "ExternalDatabase": {
+            "Type":"MySql",
+            "ConnectionString":"Server=mariadb.servarr-db.svc.cluster.local;Database=Ombi;User={{ index . "db_user" }};Password={{ index . "db_pass" }};"
+          }
+        }

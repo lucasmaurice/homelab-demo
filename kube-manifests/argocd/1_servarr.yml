@@ -1,0 +1,128 @@
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  name: servarr
+  namespace: argocd
+spec:
+  clusterResourceWhitelist:
+    - group: '*'
+      kind: '*'
+  destinations:
+    - namespace: servarr
+      server: https://kubernetes.default.svc
+    - namespace: servarr-seedbox
+      server: https://kubernetes.default.svc
+  sourceRepos:
+    - git@github.com:lucasmaurice/talos-kubernetes-lab.git
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: flaresolverr
+  namespace: argocd
+spec:
+  destination:
+    namespace: servarr
+    server: https://kubernetes.default.svc
+  project: servarr
+  source:
+    repoURL: git@github.com:lucasmaurice/talos-kubernetes-lab.git
+    targetRevision: main
+    path: kube-manifests/servarr
+    directory:
+      include: 3_flaresolverr.yml
+  syncPolicy:
+    automated: {}
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: jackett
+  namespace: argocd
+spec:
+  destination:
+    namespace: servarr
+    server: https://kubernetes.default.svc
+  project: servarr
+  source:
+    repoURL: git@github.com:lucasmaurice/talos-kubernetes-lab.git
+    targetRevision: main
+    path: kube-manifests/servarr
+    directory:
+      include: 3_jackett.yml
+  syncPolicy:
+    automated: {}
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: ombi
+  namespace: argocd
+spec:
+  destination:
+    namespace: servarr
+    server: https://kubernetes.default.svc
+  project: servarr
+  source:
+    repoURL: git@github.com:lucasmaurice/talos-kubernetes-lab.git
+    targetRevision: main
+    path: kube-manifests/servarr
+    directory:
+      include: 3_ombi.yml
+  syncPolicy:
+    automated: {}
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: radarr
+  namespace: argocd
+spec:
+  destination:
+    namespace: servarr
+    server: https://kubernetes.default.svc
+  project: servarr
+  source:
+    repoURL: git@github.com:lucasmaurice/talos-kubernetes-lab.git
+    targetRevision: main
+    path: kube-manifests/servarr
+    directory:
+      include: 3_radarr.yml
+  syncPolicy:
+    automated: {}
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: sonarr
+  namespace: argocd
+spec:
+  project: servarr
+  destination:
+    namespace: servarr
+    server: https://kubernetes.default.svc
+  source:
+    repoURL: git@github.com:lucasmaurice/talos-kubernetes-lab.git
+    targetRevision: main
+    path: kube-manifests/servarr
+    directory:
+      include: 3_sonarr.yml
+  syncPolicy:
+    automated: {}
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: seedbox
+  namespace: argocd
+spec:
+  project: servarr
+  destination:
+    namespace: servarr-seedbox
+    server: https://kubernetes.default.svc
+  source:
+    repoURL: git@github.com:lucasmaurice/talos-kubernetes-lab.git
+    targetRevision: main
+    path: kube-manifests/seedbox
+  syncPolicy:
+    automated: {}

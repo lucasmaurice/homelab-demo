@@ -1,0 +1,90 @@
+---
+# This file is a kubernetes manifest file. First we will create a namespace for our application.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: dns-updater
+  labels:
+    name: dns-updater
+---
+apiVersion: bitnami.com/v1alpha1
+kind: SealedSecret
+metadata:
+  name: dns-updater-cloudflare-token
+  namespace: dns-updater
+spec:
+  encryptedData:
+    api-key: AgA4teyWoJCzf1KMVyaU30DlZAzvXsph+IFJixA4ezD0UrgY00YyLuQFObdHuu8rD8mZfKB4QpY8aQotKEgmkpOzSZG+xdkzshTz2CMBqXE73/MKTY0KYHmTpwl8mW+uF8t9FasW05qxTxpsyzHBcb0BpI3/cCZS99F7Ec1ynrYJBNPi3Cc2oK05DfGiOnf81j+B1ol+MLSD75TroDRWQXT4P6MqZy6lgaqUgxNZX5LGq1vgK54XzyFK/nVvTq2KdJgkfb0DmsRA3FFcsElqx/++YKaUJj3y/2SvaGsKO8YWbVA+l1q2Nba74yrpuz2Czb1JSe7pW48utggl5GZwLMpnaz+KWP44yTKzBBq5cUBAg6/cxeym/8mBhndbryN3RsOj2kVg3iDj6Cb0X+uzWx4KR6eaI34+z7g6b2rQy5NACBdVKVawE9RRbcV1orl1com3PRuJ6LEAThzSLZ6gESLX+I6WKHtgC9Ah8Hm0VwYUOAqtLRI+NMmXVdHpBQw94p2Td7njRowBIbthkB8e24tKddV70kYtz95tDyGBGvKQjui5imxzStMYCjhz3Vl/fQZf0Mb88YuwIAzBfOZylwugxIn1nkQMmQzeBjK5dIp4hT77fADhYPvbRx9OEcnQ8knm2N+SPyKm8s5aLERjTd4r6D6e152cwwDkJFkSDbdV8t/syUNNWMJhnAsb2s2RRCu5JThXRkvVARYWMY6yLsTSmC9e2iO1pEQPVjlet4WhEpeCyC3tSYIz
+  template:
+    metadata:
+      name: dns-updater-cloudflare-token
+      namespace: dns-updater
+---
+apiVersion: bitnami.com/v1alpha1
+kind: SealedSecret
+metadata:
+  name: dns-updater-pushover-secret
+  namespace: dns-updater
+spec:
+  encryptedData:
+    token: AgB2Y0CjISF/Y74dP1oHJWzGAiE814NVi4ATNeGkQ0aK78opnL7VgSQAt5N6pMa2/ElsmbaJ2ZV95HKDM4yx2jPBKMB46CvpDIap0FH2PriY5ZDaqtpb7zhGYKIOZ/BwZdCOL/Dk3XegmFPyBn7BTdZMH69lbH7hQGCbIZ2dfNxq0CilHo2ShzwnycIOWhm4s5Gjr7FPaMQcdoSqLc2Ms+07Qs71Nbu/ik6ihyPqJqdm+PN1TlHqm/Sa5D7QM03uyhSGILbWcuREbYZIhc5n+LRG5Njk9Sz+06ncNPmq+JXhlqXimSt4fUq07WjY9EMBVZjh8d587Bp3oIYmnTRThQ6SS/QPqklvczdQhTYh7+mJDHv6osVq+SVZEuPtWWioB5eEfr23xsIamwNGXVPvMaI59nmXOzLXjVZCBPLSR5Mn/TzOKXcxN3Uf8JRxWj0B3xdYHl8ZRIyZEOcM0M8pNDfIIf8nSg9U3itNmGNKBij6FqI+v68z8M+0rRBaAjo2IW1p2Xw691sEq6OlvJ8U/Q1SuFfapnro1M+eSC0nLzr8kwcfHgV/5JoBY2F6wh/NUZ3ADbIFrNXXVGTPV6sVcq7aTLUmnloFWcbWMDg9j92b+5Lz9ajVj4/TUEyJt7G5PeiQeMAhXVjD670K0OS4iY5jehMOb7AObBVNQevDRiV2q/tZJUTwOmhC43qrHwUaLNJD3LXYX36EkUfVjeKSnGDYWdkG3i9krwQ/PKF63TjzASBnaCrFqCLT
+    userkey: AgBhMw7/RPcZpCbr613+F3T88a8ipgnuiK/52yoFE9RpAHabALwhOvMMhsD6CPu3FImR9oMHeBpCXQH2cjYoX7SSQWBuwzZIELCYLgyCdMHk++vfFY6BEu19n2hKKTdVgojhxrMk5ljaZkrGyW3+itcrZFBBzf9SY52e7mre5iVAKi9EGeLDKiERsU+99vVaN1LspRalWqmkiCJvViC1HQ5MBfKTMYDOBPIMf1770YH3wpI8YxofdTJD3g5OpRNs4mPnxEUVHlpId4HaSbJr5tY/SqY3zxXlPH+a3CkfQbXmG5Spv+ce9Gwu8ekHFNMuGUs1zKcHCWR6MGeN3VCJaba9ScS8mpYXO+OXE3j+SvkBY8fmkNAq+Ld7smtnYrsIE5V283EnUp1g8NjIey4tzE5bo5vbIm20TxYuTi7k01BxJmij5VaXv7AudXWoYE1oE5s+KQm46W2VOq/zau4hsUQ75jDey5P5WmMD3F/qmMNXhE1g3+ULk7aUTy4qVPa5r1f7oCjodIWIxWJ7gVJbmTeadfScQnQGaC2P2djCR9rn46auarJOA/u6CC66RAXL3YFu4PiKAYEzdyR/iclhN2KiJ6cASlyA+XUEq62WBGaeNg2RWvw1+X94YGWW2yuGmZTlkRRVltTO3PNQSZqgbcGw7P7jFQjV0+ezqyOWzf/ZLfy2vH/UZK1KC1YWJjGxNz1Q3dgqSdgjVZFY0NbeauFOJVvo96YCuBq0gQXKpY8VPSulguoLcdwp
+  template:
+    metadata:
+      name: dns-updater-pushover-secret
+      namespace: dns-updater
+---
+# Create the cronjob that will run our script every 5 minutes
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: dns-updater
+  namespace: dns-updater
+spec:
+  schedule: "*/5 * * * *"
+  concurrencyPolicy: Replace
+  successfulJobsHistoryLimit: 1
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      ttlSecondsAfterFinished: 300
+      template:
+        spec:
+          restartPolicy: Never
+          containers:
+            - name: dns-updater
+              image: ghcr.io/lucasmaurice/cloudflare-ddns:1ea7798cde7d0ae325cc609b86fe8e1cd8d95346
+              imagePullPolicy: IfNotPresent
+              securityContext:
+                runAsNonRoot: true
+                runAsUser: 1000
+                allowPrivilegeEscalation: false
+                seccompProfile:
+                  type: RuntimeDefault
+                capabilities:
+                  drop:
+                    - ALL
+              command:
+                - /bin/bash
+                - -c
+                - /dns_update.sh
+              env:
+                - name: PO_TOKEN
+                  valueFrom:
+                    secretKeyRef:
+                      name: dns-updater-pushover-secret
+                      key: token
+                - name: PO_USERKEY
+                  valueFrom:
+                    secretKeyRef:
+                      name: dns-updater-pushover-secret
+                      key: userkey
+                - name: CF_TOKEN
+                  valueFrom:
+                    secretKeyRef:
+                      name: dns-updater-cloudflare-token
+                      key: api-key
+                - name: CF_ZONE
+                  value: 8f079eae38e6c57475cfd81ad024b3a5
+                - name: CF_ENTRY
+                  value: 2ffee097631821669d5c75c2eb875969

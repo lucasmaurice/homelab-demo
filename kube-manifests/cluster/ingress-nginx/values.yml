@@ -1,0 +1,9 @@
+# helm repo add ingress-nginx https://kubernetes.github.io/ingress-nginx
+# helm upgrade --install ingress-nginx ingress-nginx/ingress-nginx --namespace ingress-nginx --create-namespace --values kube-manifests/cluster/ingress-nginx/values.yml
+
+controller:
+  service:
+    type: NodePort
+    nodePorts:
+      http: 30080
+      https: 30443

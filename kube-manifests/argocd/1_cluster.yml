@@ -1,0 +1,31 @@
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  name: cluster
+  namespace: argocd
+spec:
+  clusterResourceWhitelist:
+    - group: '*'
+      kind: '*'
+  destinations:
+    - namespace: kube-system
+      server: https://kubernetes.default.svc
+  sourceRepos:
+    - git@github.com:lucasmaurice/talos-kubernetes-lab.git
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: bitnami-sealed-secrets
+  namespace: argocd
+spec:
+  destination:
+    namespace: kube-system
+    server: https://kubernetes.default.svc
+  project: cluster
+  source:
+    repoURL: git@github.com:lucasmaurice/talos-kubernetes-lab.git
+    targetRevision: main
+    path: kube-manifests/cluster/bitnami-sealed-secrets
+  syncPolicy:
+    automated: {}

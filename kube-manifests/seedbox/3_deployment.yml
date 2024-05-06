@@ -1,0 +1,126 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: seedbox-deployment
+  namespace: servarr-seedbox
+  labels:
+    app.kubernetes.io/name: servarr-seedbox
+    app.kubernetes.io/instance: servarr-seedbox
+spec:
+  selector:
+    matchLabels:
+      app: seedbox-app
+  replicas: 1
+  serviceName: seedbox
+  template:
+    metadata:
+      labels:
+        app: seedbox-app
+    spec:
+      volumes:
+        - name: data
+          nfs:
+            server: nas1.mgmt.djls.space
+            path: /mnt/pool/Multimedia/Seed
+        - name: servarr-data
+          nfs:
+            server: nas1.mgmt.djls.space
+            path: /mnt/pool/Multimedia/Libraries/Servarr
+        - name: state
+          persistentVolumeClaim:
+            claimName: transmission-state
+      containers:
+        - name: transmission
+          image: haugene/transmission-openvpn:latest
+          ports:
+            - containerPort: 9091
+              name: http
+          securityContext:
+            capabilities:
+              add:
+                - NET_ADMIN
+          volumeMounts:
+            - name: data
+              mountPath: /data
+            - name: servarr-data
+              subPath: torrents/
+              mountPath: /servarr/torrents
+            - name: state
+              subPath: resume/
+              mountPath: /config/transmission-home/resume
+            - name: state
+              subPath: torrents/
+              mountPath: /config/transmission-home/torrents
+          env:
+            # Common Configuration
+            - name: PUID
+              value: "1000"
+            - name: PGID
+              value: "1000"
+            - name: TZ
+              value: america/toronto
+
+            # NordVPN Configuration
+            - name: OPENVPN_OPTS
+              value: --inactive 3600 --ping 10 --ping-exit 60
+            - name: OPENVPN_PROVIDER
+              value: NORDVPN
+            - name: NORDVPN_COUNTRY
+              value: FR
+            - name: NORDVPN_CATEGORY
+              value: legacy_p2p
+            - name: NORDVPN_PROTOCOL
+              value: udp
+            - name: OPENVPN_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: nordvpn-credentials
+                  key: username
+            - name: OPENVPN_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: nordvpn-credentials
+                  key: password
+
+            # All private networks
+            - name: LOCAL_NETWORK
+              value: 192.168.0.0/16,172.16.0.0/12,10.0.0.0/8
+
+            # Transmission Configuration
+            - name: WEBPROXY_ENABLED
+              value: "true"
+            - name: TRANSMISSION_RPC_AUTHENTICATION_REQUIRED
+              value: "true"
+            - name: TRANSMISSION_RPC_HOST_WHITELIST
+              value: 127.0.0.1
+            - name: TRANSMISSION_RPC_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: transmission-credentials
+                  key: username
+            - name: TRANSMISSION_RPC_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: transmission-credentials
+                  key: password
+
+            - name: TRANSMISSION_MAX_PEERS_GLOBAL
+              value: "20000"
+            - name: TRANSMISSION_PEER_LIMIT_GLOBAL
+              value: "5000"
+            - name: TRANSMISSION_PEER_LIMIT_PER_TORRENT
+              value: "5000"
+            - name: TRANSMISSION_DOWNLOAD_DIR
+              value: /data/seed
+            - name: TRANSMISSION_WATCH_DIR_ENABLED
+              value: "true"
+            - name: TRANSMISSION_WATCH_DIR
+              value: /data/watch
+            - name: TRANSMISSION_INCOMPLETE_DIR_ENABLED
+              value: "false"
+            - name: TRANSMISSION_DOWNLOAD_QUEUE_SIZE
+              value: "1000"
+            - name: TRANSMISSION_IDLE_SEEDING_LIMIT_ENABLED
+              value: "true"
+            - name: TRANSMISSION_IDLE_SEEDING_LIMIT
+              value: "1440"

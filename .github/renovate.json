@@ -1,0 +1,28 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": ["config:recommended"],
+  "kubernetes": {
+    "fileMatch": ["^kube-manifests/.*\\.yml$"]
+  },
+  "packageRules": [
+    {
+      "matchManagers": ["kubernetes"],
+      "groupName": "All Updates",
+      "automerge": false
+    },
+    {
+      "matchManagers": ["kubernetes"],
+      "matchDatasources": ["docker"],
+      "matchUpdateTypes": ["minor", "patch"],
+      "matchPackageNames": ["ghcr.io/justereseau/jackett"],
+      "groupName": "",
+      "automerge": true,
+      "automergeType": "pr",
+      "ignoreTests": true
+    },
+    {
+      "matchPackageNames": ["photoprism/photoprism"],
+      "extractVersion": "^(?<version>\\d{6})$"
+    }
+  ]
+}

@@ -1,0 +1,167 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: sonarr
+  namespace: servarr
+  labels:
+    app.kubernetes.io/name: servarr
+    app.kubernetes.io/instance: sonarr
+spec:
+  selector:
+    matchLabels:
+      app: sonarr
+  replicas: 1
+  serviceName: sonarr
+  template:
+    metadata:
+      labels:
+        app: sonarr
+    spec:
+      securityContext:
+        fsGroup: 1000
+      volumes:
+        - name: servarr-data
+          nfs:
+            server: nas1.mgmt.djls.space
+            path: /mnt/pool/Multimedia/Libraries/Servarr
+        - name: config
+          secret:
+            secretName: sonarr-config
+      containers:
+        - name: sonarr
+          image: ghcr.io/justereseau/sonarr:4.0.4.1491
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 8989
+              name: http
+          volumeMounts:
+            - name: servarr-data
+              mountPath: /servarr
+            - name: config
+              mountPath: /config/config.xml
+              subPath: config.xml
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 1000
+            runAsGroup: 1000
+            allowPrivilegeEscalation: false
+            seccompProfile:
+              type: RuntimeDefault
+            capabilities:
+              drop:
+                - ALL
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: sonarr
+  namespace: servarr
+  labels:
+    app.kubernetes.io/name: servarr
+    app.kubernetes.io/instance: sonarr
+spec:
+  ports:
+    - name: http
+      port: 80
+      protocol: TCP
+      targetPort: http
+  selector:
+    app: sonarr
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: sonarr-network-policy
+  namespace: servarr
+  labels:
+    app.kubernetes.io/name: servarr
+    app.kubernetes.io/instance: sonarr
+spec:
+  podSelector:
+    matchLabels:
+      app: sonarr
+  policyTypes:
+    - Egress
+  egress:
+    - to:
+        - podSelector:
+            matchLabels:
+              app: jackett
+        - namespaceSelector:
+            matchLabels:
+              name: servarr-seedbox
+          podSelector:
+            matchLabels:
+              app: seedbox-app
+      ports:
+        - port: http
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              name: servarr-db
+          podSelector:
+            matchLabels:
+              app.kubernetes.io/instance: postgresql
+      ports:
+        - port: 5432
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: sonarr
+  namespace: servarr
+  labels:
+    app.kubernetes.io/name: servarr
+    app.kubernetes.io/instance: sonarr
+spec:
+  ingressClassName: nginx
+  rules:
+    - host: sonarr.coloc.djls.space
+      http:
+        paths:
+          - pathType: Prefix
+            path: /
+            backend:
+              service:
+                name: sonarr
+                port:
+                  name: http
+---
+# To generate the secret sealed data:
+# echo -n "Servarr API Key: " ; read -s api_key ; echo
+# echo -n "postgres-password: " ; read -s pg_password ; echo
+# kubectl create secret generic sonarr-config --namespace servarr --dry-run=client --from-literal=pg_password=$pg_password --from-literal=api_key=$api_key -o json | kubeseal -o yaml
+apiVersion: bitnami.com/v1alpha1
+kind: SealedSecret
+metadata:
+  name: sonarr-config
+  namespace: servarr
+spec:
+  encryptedData:
+    api_key: AgBASr5zaEwa6UdY/9HyCK7ettBY5hAUPBRqhCvU0w8ndrgqh9s5BS8yUSvFUcuw3TL+6cTaAWf6BBvS7FH/1vQw5aczqgjoT9wcvAJbH6rwv2wcGsDOL/sG7jO9Ll39g1cADJYQ/OcWFtk24L1AvKffWdLU26NKxaPWC7MorXXU/qbv/SOtOrUsktAAGQHR8GdjSsVv0cH6odh572BPhUG4D7u5t8xFsai5y3BALtlxfUCNFOIEUJDDNQ8q8IiABZmvJ6H+I51gC9PoaxK0w1FkwzuHIHsvQ5KW4OuiOz4EpHCD/ekB4oY/ObgDy/uQXfHrvtbEeppnKc8tvOLN9PavL1is4Jwm00N9DbN0vyLWioSW11pKW4MMQKzeBp98rtMJRW0lhye0mxBeiCsq5oGmu8bH53OdVnDMKiJxohy0hu1j/J9USv84B9e3RSpzkDYNb6b9vYR34f/vL+r1R8nnUazqABt0iDksTP2XTRBrTNmQVOPf9tUXyc4Eo4tZm9e5exW70zRUznHuut11HM3VAz3mOLgu90+JETF2GrAm1UHRy8nnQcmh3C7purnGy/C3T1oAxx6O2IIO6UZGRb0hXk4RVgEbu1yazFR34tjFnhGJFxA3nPIHkTNTICTcGerHHBfGx6RLN0LbApE3CEO9QCes2whBdskg0fQnriKolLQOc/BWlAzseInDk8TutANkkMTo7G1BJ+Q+ZvRuN5j3EovNUMxzThWF+cSogevSGg==
+    pg_password: AgB1pXNZ0Y3tzoY7LHlgDQoXw+9aH+9YZ1sX4SltfdcdpV4aixvcXf5boVBIDE3GUUF2EtuEc0cezJ8nzB/7VOQxO+TVNKQduolQ4LDEOCGNoINJ+tLg9CabHd8WkYiZnQBLo/ofF392MATpH/cppYzg9rLQBlYdiXP0agwQBt2EPEJ068jEeyCWFKhL+J4cGcaJtBgNM1FMTnQy4GmrSuSm9k1iw07yda3QuPNX4eH8MQmeyhVuMDZXgCTsMt89l4su1Txh/EFyjFtzaEXhNjJTgBBc63pt/dkz3jR8XbcieRPzMeipM4rUae07HnOVowkiBlBJS+btlu4Ctgd/aQ3xk/txWbr4+Gd8oOV65ePjPyZkd+rW7dUZ4KXR4YTMgVoVPoY43QpoDmrg8JsykoX2ksnpx6wvQljMDKSRrgPbaKC4k4AYrLs3Ie3aNke214wAkHHhOnQRolWPFZi1CtCh5uIJoSKRhmBVx5RWLitRxJqRyA0QrJuX6BMQnPoNPsoLIWV8lm0iTmfBF154nRF/7h/U8OAi2QCSZch3a69CWE8ZZO8Jg8IeSWLF+/XTncnpGbRPue+klGnJM9Tl/ZeIZZMnaMrXZbeN5X7hDxEG0Yd4jhNvLbKNscoz1sq5sGeBMHke8KjwuP0lVlBO3H+YrVoSdzIpubl63sLUeAXi0wWs8oEYYlAtCqvFQWTs51IxfVnKzp0i9bKXvoEdwEaZk3GX
+  template:
+    metadata:
+      name: sonarr-config
+      namespace: servarr
+    data:
+      config.xml: |
+        <Config>
+          <InstanceName>Sonarr</InstanceName>
+          <BindAddress>*</BindAddress>
+          <Port>8989</Port>
+          <EnableSsl>False</EnableSsl>
+          <LaunchBrowser>False</LaunchBrowser>
+          <ApiKey>{{ index . "api_key" }}</ApiKey>
+          <AuthenticationRequired>Enabled</AuthenticationRequired>
+          <AuthenticationMethod>Forms</AuthenticationMethod>
+          <Branch>main</Branch>
+          <LogLevel>Info</LogLevel>
+          <UrlBase></UrlBase>
+          <PostgresHost>postgresql.servarr-db.svc.cluster.local</PostgresHost>
+          <PostgresPort>5432</PostgresPort>
+          <PostgresUser>sonarr</PostgresUser>
+          <PostgresPassword>{{ index . "pg_password" }}</PostgresPassword>
+          <PostgresMainDb>sonarr</PostgresMainDb>
+          <PostgresLogDb>sonarr_logs</PostgresLogDb>
+        </Config>

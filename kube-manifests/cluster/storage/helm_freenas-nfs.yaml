@@ -1,0 +1,65 @@
+# helm repo add democratic-csi https://democratic-csi.github.io/charts/
+# helm upgrade --install --values kube-manifests/cluster/storage/helm_freenas-nfs.yaml --namespace democratic-csi nas1-nfs democratic-csi/democratic-csi
+csiDriver:
+  name: org.democratic-csi.nfs
+
+storageClasses:
+  - name: nas1-nfs-csi
+    defaultClass: false
+    reclaimPolicy: Retain
+    volumeBindingMode: Immediate
+    allowVolumeExpansion: true
+    parameters:
+      fsType: nfs
+      detachedVolumesFromSnapshots: "false"
+    mountOptions:
+      - nolock
+      - noatime
+      - nfsvers=3
+    secrets:
+      provisioner-secret:
+      controller-publish-secret:
+      node-stage-secret:
+      node-publish-secret:
+      controller-expand-secret:
+
+driver:
+  config:
+    driver: freenas-api-nfs
+    instance_id:
+    csiDriver:
+      name: org.democratic-csi.nfs
+    httpConnection:
+      protocol: https
+      allowInsecure: true
+      host: nas1.mgmt.djls.space
+      port: 443
+      apiKey:
+    zfs:
+      datasetParentName: pool/k8s/nfs
+      detachedSnapshotsDatasetParentName: pool/k8s/nfs-snaps
+      datasetEnableQuotas: true
+      datasetEnableReservation: false
+      datasetPermissionsMode: "0777"
+      datasetPermissionsUser: 0
+      datasetPermissionsGroup: 0
+    nfs:
+      shareHost: 10.250.11.9
+      shareAlldirs: false
+      shareAllowedHosts: []
+      shareAllowedNetworks: []
+      shareMaprootUser: root
+      shareMaprootGroup: root
+      shareMapallUser: ""
+      shareMapallGroup: ""
+
+controller:
+  driver:
+    image: ghcr.io/democratic-csi/democratic-csi:v1.8.4
+
+node:
+  driver:
+    image: ghcr.io/democratic-csi/democratic-csi:v1.8.4
+
+csiProxy:
+  image: ghcr.io/democratic-csi/csi-grpc-proxy:v0.5.6

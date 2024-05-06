@@ -1,0 +1,173 @@
+
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: jackett
+  namespace: servarr
+  labels:
+    app.kubernetes.io/name: servarr
+    app.kubernetes.io/instance: jackett
+spec:
+  selector:
+    matchLabels:
+      app: jackett
+  replicas: 1
+  serviceName: jackett
+  volumeClaimTemplates:
+    - metadata:
+        name: state
+      spec:
+        storageClassName: nas1-iscsi-csi
+        accessModes:
+          - ReadWriteOnce
+        resources:
+          requests:
+            storage: 500Mi
+  template:
+    metadata:
+      labels:
+        app: jackett
+    spec:
+      securityContext:
+        fsGroup: 1000
+      volumes:
+        - name: jackett-config
+          secret:
+            secretName: jackett-config
+      containers:
+        - name: jackett
+          image: ghcr.io/justereseau/jackett:v0.21.2476
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 9117
+              name: http
+          volumeMounts:
+            - name: state
+              mountPath: /config/Jackett/Indexers
+              subPath: Indexers
+            - name: state
+              mountPath: /config/Jackett/DataProtection
+              subPath: DataProtection
+            - name: jackett-config
+              mountPath: /config/Jackett/ServerConfig.json
+              subPath: ServerConfig.json
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 1000
+            runAsGroup: 1000
+            allowPrivilegeEscalation: false
+            seccompProfile:
+              type: RuntimeDefault
+            capabilities:
+              drop:
+                - ALL
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: http
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: http
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: jackett
+  namespace: servarr
+  labels:
+    app.kubernetes.io/name: servarr
+    app.kubernetes.io/instance: jackett
+spec:
+  ports:
+    - name: http
+      port: 80
+      protocol: TCP
+      targetPort: http
+  selector:
+    app: jackett
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: jackett-network-policy
+  namespace: servarr
+  labels:
+    app.kubernetes.io/name: servarr
+    app.kubernetes.io/instance: jackett
+spec:
+  podSelector:
+    matchLabels:
+      app: jackett
+  policyTypes:
+    - Egress
+  egress:
+    - to:
+        - podSelector:
+            matchLabels:
+              app: flaresolverr
+      ports:
+        - port: http
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: jackett
+  namespace: servarr
+  labels:
+    app.kubernetes.io/name: servarr
+    app.kubernetes.io/instance: jackett
+spec:
+  ingressClassName: nginx
+  rules:
+    - host: jackett.coloc.djls.space
+      http:
+        paths:
+          - pathType: Prefix
+            path: /
+            backend:
+              service:
+                name: jackett
+                port:
+                  name: http
+---
+apiVersion: bitnami.com/v1alpha1
+kind: SealedSecret
+metadata:
+  name: jackett-config
+  namespace: servarr
+spec:
+  encryptedData:
+    admin_passwd: AgA0Zu4IDsU1qtFa7PrUw1F8n1XuV8DWjF0Cnkt0VYpExUNNRUuQ0huCQSrxtvwoEKwMK8VDNlpKmaBC+OAZW8kSEhXr/rbclwNb0sUaCQE1nP3dVIXGTgng/+CkmICmiSHPTvbTk019WYV6fjcjBodnnxaCiz/Nsyre7ZQLLDlcFSeAhbZjr7spwKL9vpuq1HLyfdiTk2XsdlOPtOEDCrXp1ToleH3e7daW+cfDC7tX7eCKgK7K7q89Py3qakl5zjad574+3TYIz4O+ELyfHzN7TM0qRmhzUP+EOIPcdgSGeBIqzWnYxJOutPhdwpDbaUgb/p5mDFIXXetAe2cSR16AWNdapZxtfzfn20NjTVWQ7fToMktR5MtEPWshiRO7JFHvgi5sKSbZHKG63KS1mfml8DaLAR8C+cz+m3XkCggP8KQWO13UntqXIVO0c0C5ug9bvwwO0pP+A1EXT2Ly6lOq+mhZWAaiablqg68KpHqQ3j7BEiG4RKEF4515Fn3EC9r6kcB5fxOZblMqPaIwCUFgnA2PIJv4SH0dBWta/dni2P6RE/OF4dttIrsoHAvwFoOiPsqJS9x8AsC89+/9HQYgSOnBJbT4ss88szot40kc916nKEOiWa+y9+URDEqrpBzfnnxazcDfiovq8uQipdrwsVK22rxKlKHsEQ5kPpvQkgxPT0cCd7TV/H7kRF+PuEUJmacTzpNvazrYVtypiErW9cEHv5HBbu08MrH0AltbPt4KQB69m1UIFCoMIb54VAPvaubzC07Evz3HHWllw40OlSuKLrKJs2DNmyn0yfp9Uj7EH305j/PZqWArl3fJoEECPwGzjfZFOC1lf3hfSXRdPMiBSfTiauheVS3z0nssig==
+    api_key: AgBAS9n7UNVRVQe1zn3e/4p6M6n0jo1o8eMJmuDq0h10/3yv5AdwJ3lkuZdQONFy0EiTENDhLcob/WhA+NjonOBK7MZOkN6dhoqkgwF/Dqgkfkxn44t+o0XerxnQe2UXEFu5vXY8bem2hxRBtF+e3LNDiQmE4sjmbeyyKqffUpoH1kuiWyig689hB1X6teMlyeZLawgE51Ye0Cpb1SXAingOC1vJ1vVIgEp/yY0o0luPJ+rXP3sotGyNFAldpInXcY8TaTjxn+ZMR3Moki78thpWPZCgDrcUCZZwzxhQkvuJ8FWWFpalHYCNrNRc6ZUG2tRmGG/usCyL+pSXec8BJkSOwkj5AN9tEnF1Y0j65+STQKEGkxbLY7emRHV8kgGdzEYNKE1pfyE7DKJVTpPFHqoRCA2KJWFXjbzCJpD6zOabVGrHbUtwDM2BB2ME9Ihr3O9ClCkKvS2bX98H7/ckcIAp+TzqgXr+eVnYeSlNubIzjrAL/zPIzxfJlzHX4RVUNzjJqH7N2PiRi69+FAQxoqQOdRWJ9cla/ZkM3G7jsuXORFbHxg9Ng1nDijSz7GhDZOqyo+upuMNhcfIrQqMf6AuhW649BPz5ZVS5WEBAtnrR5JBe7sjfQA0pXE1zz6Cvn7y086klOHJD7F9O70CewVFIJNTyHDg3v6y1hLb1n32Zqe4nFFwxAE3J36OqHZirWvQ7o++gSJXesXZKvmDmMqLdzytVq7hfBr6zFQpqvPipnw==
+    instance_id: AgBx/HBllFZbG+k0wDZFuFeHXubIQVZnNla3lqefwlKXfENvw+XUDdyz1e1bGp0lBEvchdkgxLUr/QM09AraUj7b2gM7OMnbSXS/pyAa0FrQq6cP7U3h8TUdZUTEBYcKy/qLa5MH3bpAm0ZdGf90sHHN/hnhv3fpIhVZeEEUovI3v+CHlHhTuxL95Gmaf9jdcfoYOHrldFxajLooPwWSxsqZ3iAwI6s4TyQNcod7+ue1DHftZNDuMp0qD2kPmkx4rbY7oJ6rY0jyK52ADxMkVPaWP7rg6F/uJeQQdatGf7lkNQC7WeAeewXXvfbhmSPnTM6g9QXIJ1i87ZBqkiIqTizTL988XMr6GXGak+domIu7DW1NWV/2G9dK3ZJari8QiYoX2QQj62MsivvbCquctf/RjDUNi0f41ob37htrfC+ZKG1cRVUk+Fjb/4CR/nKMUsJ40hXARNG/sldGosW6gwOgnCdq3TTvdDYNKlNJ9RC/Ed/2Yi1fxSS+0FDr84pasBhtG+S3nWz2XVYu2GgPbnZAKRpIofK/ypDChld73D5exLHPOJOBPcVR+Tv1/GJb5Gp0lRYeGsLhXu6wzY+jxkcaO0MKqLx7oQMRj++9pJAzWanxfQj59jAGswe1bqFOpmxSESAombng2HL4ixR8kAIi9jeYuXzr2EqEZfTSEEhLk4dZSMn2iNdQUYRLnCgAY5ixt3ZqtHcfNA2Ftv+IN1V6gjebWwoUVBZQJiYJzSYnuzdsUft4qsXBx3+5pq7bdo+J0W1/Wh+cAQZ2cxyO8fBZ
+  template:
+    metadata:
+      name: jackett-config
+      namespace: servarr
+    data:
+      ServerConfig.json: |
+        {
+          "Port": 9117,
+          "AllowExternal": true,
+          "APIKey": "{{ index . "api_key" }}",
+          "AdminPassword": "{{ index . "admin_passwd" }}",
+          "InstanceId": "{{ index . "instance_id" }}",
+          "BlackholeDir": "",
+          "UpdateDisabled": true,
+          "UpdatePrerelease": false,
+          "BasePathOverride": "",
+          "CacheEnabled": true,
+          "CacheTtl": 2100,
+          "CacheMaxResultsPerIndexer": 1000,
+          "FlareSolverrUrl": "http://flaresolverr",
+          "FlareSolverrMaxTimeout": 55000,
+          "OmdbApiKey": "",
+          "OmdbApiUrl": "",
+          "ProxyType": -1,
+          "ProxyUrl": "",
+          "ProxyPort": null,
+          "ProxyUsername": "",
+          "ProxyPassword": "",
+          "ProxyIsAnonymous": true
+        }

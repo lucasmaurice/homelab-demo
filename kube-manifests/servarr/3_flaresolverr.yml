@@ -1,0 +1,59 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: flaresolverr-deployment
+  namespace: servarr
+  labels:
+    app.kubernetes.io/name: servarr
+    app.kubernetes.io/instance: flaresolverr
+spec:
+  selector:
+    matchLabels:
+      app: flaresolverr
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: flaresolverr
+    spec:
+      containers:
+        - name: flaresolverr
+          image: ghcr.io/flaresolverr/flaresolverr:v3.3.17
+          ports:
+            - containerPort: 8191
+              name: http
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 1000
+            runAsGroup: 1000
+            allowPrivilegeEscalation: false
+            seccompProfile:
+              type: RuntimeDefault
+            capabilities:
+              drop:
+                - ALL
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: http
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: http
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: flaresolverr
+  namespace: servarr
+  labels:
+    app.kubernetes.io/name: servarr
+    app.kubernetes.io/instance: flaresolverr
+spec:
+  ports:
+    - name: http
+      port: 80
+      protocol: TCP
+      targetPort: http
+  selector:
+    app: flaresolverr

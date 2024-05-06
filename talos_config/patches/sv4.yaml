@@ -1,0 +1,9 @@
+- op: add
+  path: /machine/network/hostname
+  value: sv4
+
+- op: add
+  path: /machine/certSANs
+  value:
+    - 10.250.11.24
+    - sv4.lab.djls.space

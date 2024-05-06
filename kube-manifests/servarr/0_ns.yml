@@ -1,0 +1,9 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: servarr
+  labels:
+    name: servarr
+    kubernetes.io/metadata.name: servarr
+    app.kubernetes.io/name: servarr
+    app.kubernetes.io/instance: global

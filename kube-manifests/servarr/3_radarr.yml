@@ -1,0 +1,167 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: radarr
+  namespace: servarr
+  labels:
+    app.kubernetes.io/name: servarr
+    app.kubernetes.io/instance: radarr
+spec:
+  selector:
+    matchLabels:
+      app: radarr
+  replicas: 1
+  serviceName: radarr
+  template:
+    metadata:
+      labels:
+        app: radarr
+    spec:
+      securityContext:
+        fsGroup: 1000
+      volumes:
+        - name: servarr-data
+          nfs:
+            server: nas1.mgmt.djls.space
+            path: /mnt/pool/Multimedia/Libraries/Servarr
+        - name: config
+          secret:
+            secretName: radarr-config
+      containers:
+        - name: radarr
+          image: ghcr.io/justereseau/radarr:5.4.6.8723
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 7878
+              name: http
+          volumeMounts:
+            - name: servarr-data
+              mountPath: /servarr
+            - name: config
+              mountPath: /config/config.xml
+              subPath: config.xml
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 1000
+            runAsGroup: 1000
+            allowPrivilegeEscalation: false
+            seccompProfile:
+              type: RuntimeDefault
+            capabilities:
+              drop:
+                - ALL
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: radarr
+  namespace: servarr
+  labels:
+    app.kubernetes.io/name: servarr
+    app.kubernetes.io/instance: radarr
+spec:
+  ports:
+    - name: http
+      port: 80
+      protocol: TCP
+      targetPort: http
+  selector:
+    app: radarr
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: radarr-network-policy
+  namespace: servarr
+  labels:
+    app.kubernetes.io/name: servarr
+    app.kubernetes.io/instance: radarr
+spec:
+  podSelector:
+    matchLabels:
+      app: radarr
+  policyTypes:
+    - Egress
+  egress:
+    - to:
+        - podSelector:
+            matchLabels:
+              app: jackett
+        - namespaceSelector:
+            matchLabels:
+              name: servarr-seedbox
+          podSelector:
+            matchLabels:
+              app: seedbox-app
+      ports:
+        - port: http
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              name: servarr-db
+          podSelector:
+            matchLabels:
+              app.kubernetes.io/instance: postgresql
+      ports:
+        - port: 5432
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: radarr
+  namespace: servarr
+  labels:
+    app.kubernetes.io/name: servarr
+    app.kubernetes.io/instance: radarr
+spec:
+  ingressClassName: nginx
+  rules:
+    - host: radarr.coloc.djls.space
+      http:
+        paths:
+          - pathType: Prefix
+            path: /
+            backend:
+              service:
+                name: radarr
+                port:
+                  name: http
+---
+# To generate the secret sealed data:
+# echo -n "Servarr API Key: " ; read -s api_key ; echo
+# echo -n "postgres-password: " ; read -s pg_password ; echo
+# kubectl create secret generic radarr-config --namespace servarr --dry-run=client --from-literal=pg_password=$pg_password --from-literal=api_key=$api_key -o json | kubeseal -o yaml
+apiVersion: bitnami.com/v1alpha1
+kind: SealedSecret
+metadata:
+  name: radarr-config
+  namespace: servarr
+spec:
+  encryptedData:
+    api_key: AgBibde88NlR8go9v4hxg6piwCXpaJcE/JygC2OJ5N+As+C1g0LE72BemYsjSb90SiLkEaY8wgiE4XFr4LTv6yilb6VPiAMe1TCnyR6GNx0HeSYOCnA2+bq3dGpNv0VmewaUBIAp2lTEct/imEsXr/G2L3edguXdoC+9mwhGXnmu7TRpMzvn/Viw5kBWMAgggSL/C9X31hl+BJh0bWvim6ft9l4I50/3TyYs/d6a3zWr75TMf15Vl9uthYtl8VYSFAANYur3sC+uty79yk6SSxvNsV6u4JELT+I3BxJhv6HP7IAeLlz3TZwvx2zTEaiAapOENcsdQ7s1tgamnmZ/fO//AxUKwzC7LOC/fwUL1QoxCk8BC0kNZ4Q8yDGWWYFnKWYUNOYflmYJfUccXTjtsUwIicpAhsWo4SVYRq/CyX9MmT8jtpj4cXiCIDpO7lWfszwoa5nzL6Ny8odx8aYPcJank+1y7ACfbmgNmcM7+IGq0j4r0MkUH+wz8mat8DaRm8TyOhErPEwuq7pg0RcPrZmNDcYc3/ADwtohgKBDE9/0yNXdWRAxHEF9NUk7gIHLP6v+iUSROSwauKgw5JDFtmpTnZkhMr5oPYWJT8r3zgOqKICn+Ft2ysUUJXrW6MrmDJ5XbzRqWLC2BjrtZMArMkslTh+oPmYkFN1e6w/pE0w4KhFccl6JZIGnUB+hRY8EqTOMY58uZyR7xV3IQ6uElhAI4zRWKaN2njI1tLwzCW8Rpg==
+    pg_password: AgAsIjddi+eqOJL+XlOPlJJdS8mhtxZ9AaR3n6GC360YvRZLthTnW1Y8Y+IQDTwv1+nAIH65Rk9p2tW/Q3AFPfM22/mNSYHAqIIZhFFOpwdIwDrWNyA0NByD2hAYUe92uYDl1O/syHX19DipRsrhottYk+pbv5tw8bDEKkuHTDi8Ho95oIDskeblgMATj8wQ+Q5EtC0CJGisfYDTtWMHF0/pR7mzfG9GmpjV0es+5ORq4/vigOxpf5R/DV3MkxqSr0vm8FhvWh0WIvkrpWhuS4PtxAwKwFqhpOTLs5fSDrsQhG0djJehoyNtlbzrnNg63ylBkA/VCoGRW5hFKRCj2taqkC+mn2JfR5Sp9+HCrdL7f2ArsWUVD2UZaXs3/F+34O3o6rCcD1uyoO+IIxC8xzLeKIDC7lC/F4WnQwNllVtBibUobia0KJocmRxuoW1I900EIf5gxHyH3/t/em5Uqkzdl+HEgdRLm26fWUb5njbP/V6nH/+2yyAsOtRx5Z5LqOgGjbb3g4wkhlamQnWXMegaTb7Hgi9oV5RmUnP5ajDc5/SDkIsY5HP3Igg2NGR+vUO5ZoQlL1lb/+oo//QOHlMvAcP6wHdmLGc/hxXXjZwFA+0sMkBMJH0Ay9TXjXw/Qtd3RP5cmeZU21H/0UWIq8002j5IHS2auqEVEhK4TfZiSdmPIzDpdyJPflVBkHd2BLNUoBsCm5ecdyAwr9yn+klY19jY
+  template:
+    metadata:
+      name: radarr-config
+      namespace: servarr
+    data:
+      config.xml: |
+        <Config>
+          <InstanceName>Radarr</InstanceName>
+          <BindAddress>*</BindAddress>
+          <Port>7878</Port>
+          <EnableSsl>False</EnableSsl>
+          <LaunchBrowser>False</LaunchBrowser>
+          <ApiKey>{{ index . "api_key" }}</ApiKey>
+          <AuthenticationRequired>Enabled</AuthenticationRequired>
+          <AuthenticationMethod>Forms</AuthenticationMethod>
+          <Branch>master</Branch>
+          <LogLevel>Info</LogLevel>
+          <UrlBase></UrlBase>
+          <PostgresHost>postgresql.servarr-db.svc.cluster.local</PostgresHost>
+          <PostgresPort>5432</PostgresPort>
+          <PostgresUser>radarr</PostgresUser>
+          <PostgresPassword>{{ index . "pg_password" }}</PostgresPassword>
+          <PostgresMainDb>radarr</PostgresMainDb>
+          <PostgresLogDb>radarr_logs</PostgresLogDb>
+        </Config>

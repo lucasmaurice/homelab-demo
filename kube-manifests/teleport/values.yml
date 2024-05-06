@@ -1,0 +1,31 @@
+# helm repo add teleport https://charts.releases.teleport.dev
+# helm upgrade --install teleport teleport/teleport-cluster --namespace teleport --values ./kube-manifests/teleport/values.yml
+
+chartMode: standalone
+clusterName: home.djls.space
+
+service:
+  type: LoadBalancer
+  spec:
+    loadBalancerIP: 10.250.11.180
+
+highAvailability:
+  certManager:
+    enabled: true
+    addCommonName: true
+    addPublicAddrs: false
+    issuerGroup: cert-manager.io
+    issuerKind: ClusterIssuer
+    issuerName: letsencrypt-prod
+
+auth:
+  teleportConfig:
+    auth_service:
+      enabled: true
+      web_idle_timeout: 1h
+      authentication:
+        type: local
+        second_factor: on
+        webauthn:
+          rp_id: home.djls.space
+        connector_name: passwordless

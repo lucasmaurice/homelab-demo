@@ -1,0 +1,62 @@
+machine:
+  type: controlplane
+
+  network:
+    interfaces:
+      - interface: eno1
+        vip:
+          ip: 10.250.11.20
+
+  features:
+    kubePrism:
+      enabled: true
+      port: 7445
+
+cluster:
+  clusterName: djls-lab
+
+  allowSchedulingOnControlPlanes: true
+
+  aggregatorCA:
+    crt: LS0tLS1CRUdJTiBDRVJUSUZJQ0FURS0tLS0tCk1JSUJZVENDQVFhZ0F3SUJBZ0lSQUpZb3B1eXFYVkRUMWpiN1J6VG5YYkF3Q2dZSUtvWkl6ajBFQXdJd0FEQWUKRncweU16QTNNRGd4TlRVd05UaGFGdzB6TXpBM01EVXhOVFV3TlRoYU1BQXdXVEFUQmdjcWhrak9QUUlCQmdncQpoa2pPUFFNQkJ3TkNBQVRKV2NQMHZWd2tScGtYZzlLcStuTk96VURnR1JreTVIMXN1ZzZYdDBmM282RENBc0VYCk9NMEorS2VFNVI5Um0vdW1HRDNpVDRDeHBSaVlvSW8xeXNCdW8yRXdYekFPQmdOVkhROEJBZjhFQkFNQ0FvUXcKSFFZRFZSMGxCQll3RkFZSUt3WUJCUVVIQXdFR0NDc0dBUVVGQndNQ01BOEdBMVVkRXdFQi93UUZNQU1CQWY4dwpIUVlEVlIwT0JCWUVGRjNNZlVFSWM4OGJjOEVpQUVrUmttdnlVN2JkTUFvR0NDcUdTTTQ5QkFNQ0Ewa0FNRVlDCklRQ3ZqU3Y4aEFQQ3QvdkdFeWNSSG13OVlITjUzNkxvMHlQZlZRVXQzNm90SWdJaEFJeWFWU2cvN2lTWVhPQ1AKNGNwaml0bERocDRhQnU4UGF6TXI1ZVh6MEFPZAotLS0tLUVORCBDRVJUSUZJQ0FURS0tLS0tCg==
+
+  apiServer:
+    image: registry.k8s.io/kube-apiserver:v1.29.4
+    disablePodSecurityPolicy: true
+    admissionControl:
+      - name: PodSecurity
+        configuration:
+          apiVersion: pod-security.admission.config.k8s.io/v1alpha1
+          kind: PodSecurityConfiguration
+          defaults:
+            audit: restricted
+            audit-version: latest
+            enforce: baseline
+            enforce-version: latest
+            warn: restricted
+            warn-version: latest
+          exemptions:
+            namespaces:
+              - kube-system
+            runtimeClasses: []
+            usernames: []
+    auditPolicy:
+      apiVersion: audit.k8s.io/v1
+      kind: Policy
+      rules:
+        - level: Metadata
+
+  controllerManager:
+    image: registry.k8s.io/kube-controller-manager:v1.29.4
+
+  proxy:
+    image: registry.k8s.io/kube-proxy:v1.29.4
+
+  scheduler:
+    image: registry.k8s.io/kube-scheduler:v1.29.4
+
+  serviceAccount: {}
+
+  etcd:
+    ca:
+      crt: LS0tLS1CRUdJTiBDRVJUSUZJQ0FURS0tLS0tCk1JSUJmVENDQVNPZ0F3SUJBZ0lRTnBXN1orbXNMVUZMRzhZbEpMcVZ6akFLQmdncWhrak9QUVFEQWpBUE1RMHcKQ3dZRFZRUUtFd1JsZEdOa01CNFhEVEl6TURjd09ERTFOVEExT0ZvWERUTXpNRGN3TlRFMU5UQTFPRm93RHpFTgpNQXNHQTFVRUNoTUVaWFJqWkRCWk1CTUdCeXFHU000OUFnRUdDQ3FHU000OUF3RUhBMElBQkdQMjVXUGFmODZ4CkF1V3VYMFozVXp4OHFjdjVqMXQ3M0RlK2sya1ZUcHQxVDdmK1VUaWtMb0RUMS94QVhyQ1oydDNVU2ovR3RCMFMKeGtOcEJ1dWx3VzZqWVRCZk1BNEdBMVVkRHdFQi93UUVBd0lDaERBZEJnTlZIU1VFRmpBVUJnZ3JCZ0VGQlFjRApBUVlJS3dZQkJRVUhBd0l3RHdZRFZSMFRBUUgvQkFVd0F3RUIvekFkQmdOVkhRNEVGZ1FVWVZSRnZvQjRvYWZ1CkxPRDZIeUw3d25xRm9LWXdDZ1lJS29aSXpqMEVBd0lEU0FBd1JRSWhBTmUrYnVWSnBaUC9NR0hEYWQydmhwUEMKWlhhQ2JBWVplWVo3YjRCSDhLR3lBaUI2bVZNaUR0R3AxNUdBRE9MUS9BUldxVGN6U1dNQk1hSkF6UHh6KzRYawptdz09Ci0tLS0tRU5EIENFUlRJRklDQVRFLS0tLS0K

@@ -1,0 +1,15 @@
+- op: add
+  path: /machine/network/hostname
+  value: sv2
+
+- op: add
+  path: /machine/certSANs
+  value:
+    - 10.250.11.20
+    - kube.lab.djls.space
+    - 10.250.11.22
+    - sv2.lab.djls.space
+
+- op: copy
+  from: /machine/certSANs
+  path: /cluster/apiServer/certSANs
